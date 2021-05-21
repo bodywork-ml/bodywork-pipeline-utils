@@ -93,7 +93,7 @@ workflows:
               ignore: main
       - build-python-package-push-to-pypi:
           requires:
-            - build-main-docker-image-push-to-dockerhub
+            - ensure-package-version-number-incremented
           filters:
             branches:
               only: main

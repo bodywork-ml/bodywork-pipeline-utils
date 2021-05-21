@@ -5,4 +5,4 @@
 
 # Bodywork Pipeline Utilities
 
-TODO
+Utilities for helping with pipeline development and integration with 3rd party MLOps services.
