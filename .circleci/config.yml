@@ -26,7 +26,9 @@ jobs:
           path: ~/tox/
       - run:
           name: Code Coverage upload
-          command: bash <(curl -s https://codecov.io/bash)
+          command: |
+            export CODECOV_TOKEN=$CODEVOV_TOKEN
+            bash <(curl -s https://codecov.io/bash)
   build-python-package-push-to-pypi:
     docker: 
       - image: circleci/python:3.8
