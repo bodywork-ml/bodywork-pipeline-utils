@@ -18,7 +18,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='bodywork_pipeline_utils',
-    description='TODO',
+    description='Utilities for helping with pipeline development and integration with 3rd party MLOps services.',  # noqa
     long_description=readme,
     long_description_content_type='text/markdown',
     version=version,
