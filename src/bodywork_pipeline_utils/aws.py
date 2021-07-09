@@ -13,17 +13,9 @@ from botocore.response import StreamingBody
 from pandas import DataFrame, read_csv, read_parquet
 
 
-FILE_FORMAT_EXTENSIONS = {"csv": "CSV", "parquet": "PARQUET", "pickle": "PICKLE"}
+FILE_FORMAT_EXTENSIONS = {"csv": "CSV", "parquet": "PARQUET", "pkl": "PICKLE"}
 
 s3_client = aws.client("s3")
-
-
-class Dataset(NamedTuple):
-    """Container for downloaded datasets."""
-
-    data: DataFrame
-    datetime: datetime
-    key: str
 
 
 class S3TimestampedArtefact:
@@ -118,6 +110,7 @@ def _find_latest_artefact_on_s3(
     Raises:
         RuntimeError: If no files are found or if there was an error
             connecting to AWS.
+        ValueError: If file_format is not a supported file format.
 
     Returns:
         An artefact object.
@@ -147,6 +140,44 @@ def _find_latest_artefact_on_s3(
     except Exception as e:
         msg = f"failed to download dataset from s3://{bucket}/{folder_std}"
         raise RuntimeError(msg) from e
+
+
+class Dataset(NamedTuple):
+    """Container for downloaded datasets and associated metadata."""
+
+    data: DataFrame
+    datetime: datetime
+    key: str
+
+
+def get_latest_csv_dataset_from_s3(bucket: str, folder: str = "") -> Dataset:
+    """Get the latest CSV dataset from S3.
+
+    Args:
+        bucket: S3 bucket to look in.
+        folder: Folder within bucket to limit search, defaults to "".
+
+    Returns:
+        Dataset object.
+    """
+    artefact = _find_latest_artefact_on_s3("csv", bucket, folder)
+    data = read_csv(artefact.get())
+    return Dataset(data, artefact.timestamp, artefact.obj_key)
+
+
+def get_latest_parquet_dataset_from_s3(bucket: str, folder: str = "") -> Dataset:
+    """Get the latest Parquet dataset from S3.
+
+    Args:
+        bucket: S3 bucket to look in.
+        folder: Folder within bucket to limit search, defaults to "".
+
+    Returns:
+        Dataset object.
+    """
+    artefact = _find_latest_artefact_on_s3("parquet", bucket, folder)
+    data = read_parquet(artefact.get())
+    return Dataset(data, artefact.timestamp, artefact.obj_key)
 
 
 def put_object_to_s3(obj: Any, file_name: str, bucket: str, folder: str = "") -> None:

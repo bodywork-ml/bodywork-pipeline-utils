@@ -14,6 +14,8 @@ from pytest import raises
 
 from bodywork_pipeline_utils.aws import (
     _find_latest_artefact_on_s3,
+    get_latest_csv_dataset_from_s3,
+    get_latest_parquet_dataset_from_s3,
     put_object_to_s3,
     S3TimestampedArtefact,
 )
@@ -130,6 +132,44 @@ def test_find_latest_artefact_on_s3_finds_latest_artefact(mock_s3_client: MagicM
 def test_find_latest_artefact_on_s3_raises_exception_for_invalid_file_format():
     with raises(ValueError, match="is not a supported file type"):
         _find_latest_artefact_on_s3("foobar", "my-bucket", "datasets")
+
+
+@patch("bodywork_pipeline_utils.aws.s3_client")
+def test_get_latest_csv_dataset_from_s3_return_dataset(mock_s3_client: MagicMock):
+    mock_s3_client.list_objects.return_value = {
+        "Contents": [
+            {"Key": "datasets/my_data_2020-06-08T00:00:00.csv"},
+            {"Key": "datasets/my_data_2020-07-08T01:00:00.csv"},
+            {"Key": "datasets/my_data_2020-05-08T00:15:00.csv"},
+        ]
+    }
+    mock_s3_client.get_object.return_value = {
+        "Body": open("tests/resources/dataset.csv", "rb")
+    }
+    dataset = get_latest_csv_dataset_from_s3("my-bucket", "my-folder")
+    assert type(dataset.data) == DataFrame
+    assert dataset.data.shape == (2, 2)
+    assert dataset.datetime == datetime(2020, 7, 8, 1)
+    assert dataset.key == "datasets/my_data_2020-07-08T01:00:00.csv"
+
+
+@patch("bodywork_pipeline_utils.aws.s3_client")
+def test_get_latest_parquet_dataset_from_s3_return_dataset(mock_s3_client: MagicMock):
+    mock_s3_client.list_objects.return_value = {
+        "Contents": [
+            {"Key": "datasets/my_data_2020-06-08T00:00:00.parquet"},
+            {"Key": "datasets/my_data_2020-07-08T01:00:00.parquet"},
+            {"Key": "datasets/my_data_2020-05-08T00:15:00.parquet"},
+        ]
+    }
+    mock_s3_client.get_object.return_value = {
+        "Body": open("tests/resources/dataset.parquet", "rb")
+    }
+    dataset = get_latest_parquet_dataset_from_s3("my-bucket", "my-folder")
+    assert type(dataset.data) == DataFrame
+    assert dataset.data.shape == (2, 2)
+    assert dataset.datetime == datetime(2020, 7, 8, 1)
+    assert dataset.key == "datasets/my_data_2020-07-08T01:00:00.parquet"
 
 
 @patch("bodywork_pipeline_utils.aws.s3_client")
