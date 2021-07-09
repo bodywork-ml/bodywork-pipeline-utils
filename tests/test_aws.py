@@ -1,7 +1,10 @@
 """
 Tests for AWS utilities.
 """
+import pickle
 from datetime import datetime
+from typing import Protocol
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 from botocore.exceptions import ClientError
@@ -9,7 +12,11 @@ from pandas.core.frame import DataFrame
 
 from pytest import raises
 
-from bodywork_pipeline_utils.aws import get_latest_dataset_from_s3, S3DatasetObject
+from bodywork_pipeline_utils.aws import (
+    get_latest_dataset_from_s3,
+    put_object_to_s3,
+    S3DatasetObject
+)
 
 
 def test_extract_iso_timestamp_from_string_identifies_iso_timestamps():
@@ -125,3 +132,28 @@ def test_get_latest_dataset_from_s3_raises_exception_when_s3_client_fails(
     mock_s3_client.list_objects.side_effect = Exception
     with raises(RuntimeError, match="failed to download dataset"):
         get_latest_dataset_from_s3("my-bucket", "datasets")
+
+
+@patch("bodywork_pipeline_utils.aws.s3_client")
+def test_put_object_to_s3_puts_object(mock_s3_client: MagicMock):
+    some_object = [1, 2, 3, 4, 5]
+    put_object_to_s3(some_object, "my_object.pickle", "my-bucket", "stuff/")
+    mock_s3_client.put_object.assert_called_once_with(
+        Body=pickle.dumps(some_object, protocol=5),
+        Bucket="my-bucket",
+        Key="stuff/my_object.pickle"
+    )
+
+
+@patch("bodywork_pipeline_utils.aws.s3_client")
+def test_put_object_to_s3_raises_exception_when_upload_fails(mock_s3_client: MagicMock):
+    mock_s3_client.put_object.side_effect = ClientError({}, "")
+    with raises(RuntimeError, match="could upload object to AWS S3"):
+        put_object_to_s3([1, 2, 3, 4, 5], "my_object.pickle", "my-bucket", "stuff/")
+
+
+@patch("bodywork_pipeline_utils.aws.pickle")
+def test_put_object_to_s3_raises_exception_when_pickle_fails(mock_pickler: MagicMock):
+    mock_pickler.dumps.side_effect = pickle.PicklingError()
+    with raises(RuntimeError, match="could not serialise object to bytes with pickle"):
+        put_object_to_s3([1, 2, 3], "my_object.pickle", "my-bucket", "stuff/")

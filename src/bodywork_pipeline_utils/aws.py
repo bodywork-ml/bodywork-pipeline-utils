@@ -1,8 +1,10 @@
 """
 Utility functions for working with AWS services.
 """
+import pickle
+from pickle import dumps, PicklingError
 from datetime import datetime
-from typing import NamedTuple, Optional
+from typing import Any, NamedTuple, Optional
 from re import findall, sub
 
 import boto3 as aws
@@ -139,3 +141,17 @@ def get_latest_dataset_from_s3(bucket: str, folder: str = "") -> Dataset:
     except Exception as e:
         msg = f"failed to download dataset from s3://{bucket}/{folder_std}"
         raise RuntimeError(msg) from e
+
+
+def put_object_to_s3(obj: Any, file_name: str, bucket: str, folder: str = "") -> None:
+    folder_std = folder if folder.endswith("/") or folder == "" else f"{folder}/"
+    s3_key = folder_std + file_name
+    try:
+        obj_bytes = pickle.dumps(obj, protocol=5)
+        s3_client.put_object(Body=obj_bytes, Bucket=bucket, Key=s3_key)
+    except PicklingError as e:
+        msg = f"could not serialise object to bytes with pickle - {e}"
+        raise RuntimeError(msg)
+    except ClientError as e:
+        msg = f"could upload object to AWS S3 - {e}"
+        raise RuntimeError(msg)
