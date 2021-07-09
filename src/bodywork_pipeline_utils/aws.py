@@ -9,10 +9,11 @@ from re import findall, sub
 
 import boto3 as aws
 from botocore.exceptions import ClientError
+from botocore.response import StreamingBody
 from pandas import DataFrame, read_csv, read_parquet
 
 
-FILE_FORMAT_EXTENSIONS = {"csv": "CSV", "parquet": "PARQUET"}
+FILE_FORMAT_EXTENSIONS = {"csv": "CSV", "parquet": "PARQUET", "pickle": "PICKLE"}
 
 s3_client = aws.client("s3")
 
@@ -25,8 +26,8 @@ class Dataset(NamedTuple):
     key: str
 
 
-class S3DatasetObject:
-    """Model for remote tabular datasets on S3."""
+class S3TimestampedArtefact:
+    """Model for remote artefacts on S3."""
 
     def __init__(self, bucket: str, s3_obj_key: str):
         """Constructor.
@@ -52,26 +53,23 @@ class S3DatasetObject:
         self._datetime = _datetime
         self._file_format = _file_format
 
-    def get(self) -> DataFrame:
-        """Get dataset from S3.
+    def get(self) -> StreamingBody:
+        """Get artefact from S3.
 
         Raises:
-            RuntimeError: If the dataset cannot be retrieved from S3.
+            RuntimeError: If the artefact cannot be retrieved from S3.
 
         Returns:
-            DataFrame representation of remote dataset.
+            Streamed bytes representation of remote artefact.
         """
         try:
             s3_object = s3_client.get_object(Bucket=self._bucket, Key=self._s3_obj_key)
-            data_stream = s3_object["Body"]
+            return s3_object["Body"]
         except ClientError as e:
-            msg = f"cannot get data from s3://{self._bucket}/{self._s3_obj_key} - {e}"
+            msg = (
+                f"cannot get artefact from s3://{self._bucket}/{self._s3_obj_key} - {e}"
+            )
             raise RuntimeError(msg)
-        if self._file_format == "CSV":
-            dataset = read_csv(data_stream)
-        elif self._file_format == "PARQUET":
-            dataset = read_parquet(data_stream)
-        return dataset
 
     @property
     def timestamp(self) -> datetime:
@@ -85,7 +83,7 @@ class S3DatasetObject:
     def obj_key(self) -> str:
         return self._s3_obj_key
 
-    def __lt__(self, other: "S3DatasetObject") -> bool:
+    def __lt__(self, other: "S3TimestampedArtefact") -> bool:
         return self._datetime < other._datetime
 
     @staticmethod
@@ -107,10 +105,13 @@ class S3DatasetObject:
             return None
 
 
-def get_latest_dataset_from_s3(bucket: str, folder: str = "") -> Dataset:
-    """Get the most recent timestamped dataset from an S3 folder.
+def _find_latest_artefact_on_s3(
+    file_format: str, bucket: str, folder: str = ""
+) -> S3TimestampedArtefact:
+    """Get the most recent timestamped artefact from an S3 folder.
 
     Args:
+        file_format: File format associated with artefact.
         bucket: S3 bucket to look in.
         folder: Folder within bucket to limit search, defaults to "".
 
@@ -119,24 +120,29 @@ def get_latest_dataset_from_s3(bucket: str, folder: str = "") -> Dataset:
             connecting to AWS.
 
     Returns:
-        A Dataset object containing the data and metadata about the file.
+        An artefact object.
     """
+    if file_format not in FILE_FORMAT_EXTENSIONS.keys():
+        msg = f"{file_format} is not a supported file type."
+        raise ValueError(msg)
+    else:
+        file_format_ = FILE_FORMAT_EXTENSIONS[file_format]
     folder_std = folder if folder.endswith("/") or folder == "" else f"{folder}/"
     try:
         s3_objects = s3_client.list_objects(Bucket=bucket, Prefix=folder_std)
-        s3_datasets = []
+        s3_artefacts = []
         for s3_obj in s3_objects["Contents"]:
             try:
-                dataset_obj = S3DatasetObject(bucket, s3_obj["Key"])
-                s3_datasets.append(dataset_obj)
+                artefact = S3TimestampedArtefact(bucket, s3_obj["Key"])
+                if artefact.file_format == file_format_:
+                    s3_artefacts.append(artefact)
             except ValueError:
                 pass
 
-        latest_file = sorted(s3_datasets)[-1]
-        datset = Dataset(latest_file.get(), latest_file.timestamp, latest_file.obj_key)
-        return datset
+        latest_artefact = sorted(s3_artefacts)[-1]
+        return latest_artefact
     except IndexError:
-        msg = f"no valid dataset files found in s3://{bucket}/{folder_std}"
+        msg = f"no valid artefacts found in s3://{bucket}/{folder_std}"
         raise RuntimeError(msg)
     except Exception as e:
         msg = f"failed to download dataset from s3://{bucket}/{folder_std}"
