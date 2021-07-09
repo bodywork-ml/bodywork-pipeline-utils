@@ -18,6 +18,7 @@ from bodywork_pipeline_utils.aws import (
     get_latest_parquet_dataset_from_s3,
     put_object_to_s3,
     S3TimestampedArtefact,
+    put_file_to_s3,
 )
 
 
@@ -213,3 +214,25 @@ def test_put_object_to_s3_raises_exception_when_pickle_fails(mock_pickler: Magic
     mock_pickler.dumps.side_effect = pickle.PicklingError()
     with raises(RuntimeError, match="could not serialise object to bytes with pickle"):
         put_object_to_s3([1, 2, 3], "my_object.pickle", "my-bucket", "stuff/")
+
+
+@patch("bodywork_pipeline_utils.aws.s3_client")
+def test_put_file_to_s3_uploads_file(mock_s3_client: MagicMock):
+    put_file_to_s3("tests/resources/dataset.csv", "my-bucket", "stuff/")
+    mock_s3_client.upload_file.assert_called_once_with(
+        "tests/resources/dataset.csv",
+        Bucket="my-bucket",
+        Key="stuff/dataset.csv",
+    )
+
+
+@patch("bodywork_pipeline_utils.aws.s3_client")
+def test_put_file_to_s3_raises_exception_when_upload_fails(mock_s3_client: MagicMock):
+    mock_s3_client.upload_file.side_effect = ClientError({}, "")
+    with raises(RuntimeError, match="could upload file to AWS S3"):
+        put_file_to_s3("tests/resources/dataset.csv", "my-bucket", "stuff/")
+
+
+def test_put_file_to_s3_raises_exception_when_file_cannot_be_founbd():
+    with raises(FileExistsError, match="Cannot open file"):
+        put_file_to_s3("tests/resources/foo.csv", "my-bucket", "stuff/")
