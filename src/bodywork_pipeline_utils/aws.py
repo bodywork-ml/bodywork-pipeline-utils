@@ -22,12 +22,13 @@ s3_client = aws.client("s3")
 class S3TimestampedArtefact:
     """Model for remote artefacts on S3."""
 
-    def __init__(self, bucket: str, s3_obj_key: str):
+    def __init__(self, bucket: str, s3_obj_key: str, s3_etag: str):
         """Constructor.
 
         Args:
             bucket: S3 bucket name.
             s3_obj_key: Key of object in bucket.
+            s3_etag: S3 entity tag (hash of the object).
 
         Raises:
             ValueError: If timestamp and a supported file format cannot
@@ -35,6 +36,7 @@ class S3TimestampedArtefact:
         """
         self._bucket = bucket
         self._s3_obj_key = s3_obj_key
+        self._s3_etag = s3_etag
         _datetime = self._extract_iso_timestamp_from_string(s3_obj_key)
         if _datetime is None:
             msg = f"{s3_obj_key} has no parsable timestamp."
@@ -75,6 +77,10 @@ class S3TimestampedArtefact:
     @property
     def obj_key(self) -> str:
         return self._s3_obj_key
+
+    @property
+    def etag(self) -> str:
+        return self._s3_etag
 
     def __lt__(self, other: "S3TimestampedArtefact") -> bool:
         return self._datetime < other._datetime
@@ -127,7 +133,7 @@ def _find_latest_artefact_on_s3(
         s3_artefacts = []
         for s3_obj in s3_objects["Contents"]:
             try:
-                artefact = S3TimestampedArtefact(bucket, s3_obj["Key"])
+                artefact = S3TimestampedArtefact(bucket, s3_obj["Key"], s3_obj["ETag"])
                 if artefact.file_format == file_format_:
                     s3_artefacts.append(artefact)
             except ValueError:
@@ -149,6 +155,7 @@ class Dataset(NamedTuple):
     data: DataFrame
     datetime: datetime
     key: str
+    hash: str
 
 
 def get_latest_csv_dataset_from_s3(bucket: str, folder: str = "") -> Dataset:
@@ -163,7 +170,7 @@ def get_latest_csv_dataset_from_s3(bucket: str, folder: str = "") -> Dataset:
     """
     artefact = _find_latest_artefact_on_s3("csv", bucket, folder)
     data = read_csv(artefact.get())
-    return Dataset(data, artefact.timestamp, artefact.obj_key)
+    return Dataset(data, artefact.timestamp, artefact.obj_key, artefact.etag)
 
 
 def get_latest_parquet_dataset_from_s3(bucket: str, folder: str = "") -> Dataset:
@@ -178,7 +185,7 @@ def get_latest_parquet_dataset_from_s3(bucket: str, folder: str = "") -> Dataset
     """
     artefact = _find_latest_artefact_on_s3("parquet", bucket, folder)
     data = read_parquet(artefact.get())
-    return Dataset(data, artefact.timestamp, artefact.obj_key)
+    return Dataset(data, artefact.timestamp, artefact.obj_key, artefact.etag)
 
 
 def put_object_to_s3(obj: Any, file_name: str, bucket: str, folder: str = "") -> None:

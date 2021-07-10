@@ -72,25 +72,25 @@ def test_extract_file_format_from_string_matches_file_formats():
 
 def test_S3TimestampedArtefact_raises_exception_for_invalid_type_keys():
     with raises(ValueError, match="has no parsable timestamp"):
-        S3TimestampedArtefact("my-bucket", "this_is_not_a_dataset_key")
+        S3TimestampedArtefact("my-bucket", "this_is_not_a_dataset_key", "hash")
 
     with raises(ValueError, match="has no supported file format"):
-        S3TimestampedArtefact("my-bucket", "my/data_2021-12-12T13:30:30")
+        S3TimestampedArtefact("my-bucket", "my/data_2021-12-12T13:30:30", "hash")
 
     with raises(ValueError, match="has no supported file format"):
-        S3TimestampedArtefact("my-bucket", "my/data_2021-12-12T13:30:30.foo")
+        S3TimestampedArtefact("my-bucket", "my/data_2021-12-12T13:30:30.foo", "hash")
 
 
 def test_S3TimestampedArtefact_construction_with_valid_data():
     assert (
-        S3TimestampedArtefact("my-bucket", "my_data_2021-12-12T13:30:30.csv")
+        S3TimestampedArtefact("my-bucket", "my_data_2021-12-12T13:30:30.csv", "hash")
         is not None
     )
 
 
 def test_S3TimestampedArtefact_less_than_operator():
-    obj1 = S3TimestampedArtefact("my-bucket", "my_data_2021-11-12T13:30:30.csv")
-    obj2 = S3TimestampedArtefact("my-bucket", "my_data_2021-12-12T13:30:30.csv")
+    obj1 = S3TimestampedArtefact("my-bucket", "my_data_2021-11-12T13:30:30.csv", "hash")
+    obj2 = S3TimestampedArtefact("my-bucket", "my_data_2021-12-12T13:30:30.csv", "hash")
     assert obj1 < obj2
 
 
@@ -99,7 +99,10 @@ def test_S3TimestampedArtefact_gets_artefacts(mock_s3_client: MagicMock):
     mock_s3_client.get_object.return_value = {
         "Body": open("tests/resources/dataset.csv", "rb")
     }
-    data = S3TimestampedArtefact("my-bucket", "my/data_2020-01-01T00:00:00.csv").get()
+    artefact = S3TimestampedArtefact(
+        "my-bucket", "my/data_2020-01-01T00:00:00.csv", "hash"
+    )
+    data = artefact.get()
     df = read_csv(data)
     assert type(df) == DataFrame
     assert df.shape == (2, 2)
@@ -110,18 +113,21 @@ def test_S3TimestampedArtefact_raises_exception_on_s3_client_error(
     mock_s3_client: MagicMock,
 ):
     mock_s3_client.get_object.side_effect = ClientError({}, "")
+    artefact = S3TimestampedArtefact(
+        "my-bucket", "my/data_2020-01-01T00:00:00.csv", "hash"
+    )
     with raises(RuntimeError, match="cannot get artefact from s3"):
-        S3TimestampedArtefact("my-bucket", "my/data_2020-01-01T00:00:00.csv").get()
+        artefact.get()
 
 
 @patch("bodywork_pipeline_utils.aws.s3_client")
 def test_find_latest_artefact_on_s3_finds_latest_artefact(mock_s3_client: MagicMock):
     mock_s3_client.list_objects.return_value = {
         "Contents": [
-            {"Key": "datasets/my_data_2020-06-08T00:00:00.csv"},
-            {"Key": "datasets/my_data_2020-07-08T01:00:00.csv"},
-            {"Key": "datasets/my_data_2020-07-08T01:01:00.parquet"},
-            {"Key": "datasets/my_data_2020-05-08T00:15:00.csv"},
+            {"Key": "datasets/my_data_2020-06-08T00:00:00.csv", "ETag": "hash"},
+            {"Key": "datasets/my_data_2020-07-08T01:00:00.csv", "ETag": "hash"},
+            {"Key": "datasets/my_data_2020-07-08T01:01:00.parquet", "ETag": "hash"},
+            {"Key": "datasets/my_data_2020-05-08T00:15:00.csv", "ETag": "hash"},
         ]
     }
     artefact = _find_latest_artefact_on_s3("csv", "my-bucket", "datasets")
@@ -139,9 +145,9 @@ def test_find_latest_artefact_on_s3_raises_exception_for_invalid_file_format():
 def test_get_latest_csv_dataset_from_s3_return_dataset(mock_s3_client: MagicMock):
     mock_s3_client.list_objects.return_value = {
         "Contents": [
-            {"Key": "datasets/my_data_2020-06-08T00:00:00.csv"},
-            {"Key": "datasets/my_data_2020-07-08T01:00:00.csv"},
-            {"Key": "datasets/my_data_2020-05-08T00:15:00.csv"},
+            {"Key": "datasets/my_data_2020-06-08T00:00:00.csv", "ETag": "hash"},
+            {"Key": "datasets/my_data_2020-07-08T01:00:00.csv", "ETag": "hash"},
+            {"Key": "datasets/my_data_2020-05-08T00:15:00.csv", "ETag": "hash"},
         ]
     }
     mock_s3_client.get_object.return_value = {
@@ -152,15 +158,16 @@ def test_get_latest_csv_dataset_from_s3_return_dataset(mock_s3_client: MagicMock
     assert dataset.data.shape == (2, 2)
     assert dataset.datetime == datetime(2020, 7, 8, 1)
     assert dataset.key == "datasets/my_data_2020-07-08T01:00:00.csv"
+    assert dataset.hash == "hash"
 
 
 @patch("bodywork_pipeline_utils.aws.s3_client")
 def test_get_latest_parquet_dataset_from_s3_return_dataset(mock_s3_client: MagicMock):
     mock_s3_client.list_objects.return_value = {
         "Contents": [
-            {"Key": "datasets/my_data_2020-06-08T00:00:00.parquet"},
-            {"Key": "datasets/my_data_2020-07-08T01:00:00.parquet"},
-            {"Key": "datasets/my_data_2020-05-08T00:15:00.parquet"},
+            {"Key": "datasets/my_data_2020-06-08T00:00:00.parquet", "ETag": "hash"},
+            {"Key": "datasets/my_data_2020-07-08T01:00:00.parquet", "ETag": "hash"},
+            {"Key": "datasets/my_data_2020-05-08T00:15:00.parquet", "ETag": "hash"},
         ]
     }
     mock_s3_client.get_object.return_value = {
@@ -171,6 +178,7 @@ def test_get_latest_parquet_dataset_from_s3_return_dataset(mock_s3_client: Magic
     assert dataset.data.shape == (2, 2)
     assert dataset.datetime == datetime(2020, 7, 8, 1)
     assert dataset.key == "datasets/my_data_2020-07-08T01:00:00.parquet"
+    assert dataset.hash == "hash"
 
 
 @patch("bodywork_pipeline_utils.aws.s3_client")
