@@ -12,7 +12,7 @@ from pandas import DataFrame, read_csv
 
 from pytest import raises
 
-from bodywork_pipeline_utils.aws import (
+from bodywork_pipeline_utils.aws.datasets import (
     _find_latest_artefact_on_s3,
     get_latest_csv_dataset_from_s3,
     get_latest_parquet_dataset_from_s3,
@@ -94,7 +94,7 @@ def test_S3TimestampedArtefact_less_than_operator():
     assert obj1 < obj2
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_S3TimestampedArtefact_gets_artefacts(mock_s3_client: MagicMock):
     mock_s3_client.get_object.return_value = {
         "Body": open("tests/resources/dataset.csv", "rb")
@@ -108,7 +108,7 @@ def test_S3TimestampedArtefact_gets_artefacts(mock_s3_client: MagicMock):
     assert df.shape == (2, 2)
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_S3TimestampedArtefact_raises_exception_on_s3_client_error(
     mock_s3_client: MagicMock,
 ):
@@ -120,7 +120,7 @@ def test_S3TimestampedArtefact_raises_exception_on_s3_client_error(
         artefact.get()
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_find_latest_artefact_on_s3_finds_latest_artefact(mock_s3_client: MagicMock):
     mock_s3_client.list_objects.return_value = {
         "Contents": [
@@ -141,7 +141,7 @@ def test_find_latest_artefact_on_s3_raises_exception_for_invalid_file_format():
         _find_latest_artefact_on_s3("foobar", "my-bucket", "datasets")
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_get_latest_csv_dataset_from_s3_return_dataset(mock_s3_client: MagicMock):
     mock_s3_client.list_objects.return_value = {
         "Contents": [
@@ -161,7 +161,7 @@ def test_get_latest_csv_dataset_from_s3_return_dataset(mock_s3_client: MagicMock
     assert dataset.hash == "hash"
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_get_latest_parquet_dataset_from_s3_return_dataset(mock_s3_client: MagicMock):
     mock_s3_client.list_objects.return_value = {
         "Contents": [
@@ -181,7 +181,7 @@ def test_get_latest_parquet_dataset_from_s3_return_dataset(mock_s3_client: Magic
     assert dataset.hash == "hash"
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_find_latest_artefact_on_s3_raises_exception_when_no_datasets_found(
     mock_s3_client: MagicMock,
 ):
@@ -190,7 +190,7 @@ def test_find_latest_artefact_on_s3_raises_exception_when_no_datasets_found(
         _find_latest_artefact_on_s3("csv", "my-bucket", "datasets")
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_find_latest_artefact_on_s3_raises_exception_when_s3_client_fails(
     mock_s3_client: MagicMock,
 ):
@@ -199,7 +199,7 @@ def test_find_latest_artefact_on_s3_raises_exception_when_s3_client_fails(
         _find_latest_artefact_on_s3("csv", "my-bucket", "datasets")
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_put_object_to_s3_puts_object(mock_s3_client: MagicMock):
     some_object = [1, 2, 3, 4, 5]
     put_object_to_s3(some_object, "my_object.pickle", "my-bucket", "stuff/")
@@ -210,21 +210,21 @@ def test_put_object_to_s3_puts_object(mock_s3_client: MagicMock):
     )
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_put_object_to_s3_raises_exception_when_upload_fails(mock_s3_client: MagicMock):
     mock_s3_client.put_object.side_effect = ClientError({}, "")
     with raises(RuntimeError, match="could upload object to AWS S3"):
         put_object_to_s3([1, 2, 3, 4, 5], "my_object.pickle", "my-bucket", "stuff/")
 
 
-@patch("bodywork_pipeline_utils.aws.pickle")
+@patch("bodywork_pipeline_utils.aws.datasets.pickle")
 def test_put_object_to_s3_raises_exception_when_pickle_fails(mock_pickler: MagicMock):
     mock_pickler.dumps.side_effect = pickle.PicklingError()
     with raises(RuntimeError, match="could not serialise object to bytes with pickle"):
         put_object_to_s3([1, 2, 3], "my_object.pickle", "my-bucket", "stuff/")
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_put_file_to_s3_uploads_file(mock_s3_client: MagicMock):
     put_file_to_s3("tests/resources/dataset.csv", "my-bucket", "stuff/")
     mock_s3_client.upload_file.assert_called_once_with(
@@ -234,7 +234,7 @@ def test_put_file_to_s3_uploads_file(mock_s3_client: MagicMock):
     )
 
 
-@patch("bodywork_pipeline_utils.aws.s3_client")
+@patch("bodywork_pipeline_utils.aws.datasets.s3_client")
 def test_put_file_to_s3_raises_exception_when_upload_fails(mock_s3_client: MagicMock):
     mock_s3_client.upload_file.side_effect = ClientError({}, "")
     with raises(RuntimeError, match="could upload file to AWS S3"):
