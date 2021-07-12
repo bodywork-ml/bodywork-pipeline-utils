@@ -157,6 +157,7 @@ def test_get_latest_csv_dataset_from_s3_return_dataset(mock_s3_client: MagicMock
     assert type(dataset.data) == DataFrame
     assert dataset.data.shape == (2, 2)
     assert dataset.datetime == datetime(2020, 7, 8, 1)
+    assert dataset.bucket == "my-bucket"
     assert dataset.key == "datasets/my_data_2020-07-08T01:00:00.csv"
     assert dataset.hash == "hash"
 
@@ -177,6 +178,7 @@ def test_get_latest_parquet_dataset_from_s3_return_dataset(mock_s3_client: Magic
     assert type(dataset.data) == DataFrame
     assert dataset.data.shape == (2, 2)
     assert dataset.datetime == datetime(2020, 7, 8, 1)
+    assert dataset.bucket == "my-bucket"
     assert dataset.key == "datasets/my_data_2020-07-08T01:00:00.parquet"
     assert dataset.hash == "hash"
 

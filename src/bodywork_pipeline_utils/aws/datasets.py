@@ -154,6 +154,7 @@ class Dataset(NamedTuple):
 
     data: DataFrame
     datetime: datetime
+    bucket: str
     key: str
     hash: str
 
@@ -170,7 +171,7 @@ def get_latest_csv_dataset_from_s3(bucket: str, folder: str = "") -> Dataset:
     """
     artefact = _find_latest_artefact_on_s3("csv", bucket, folder)
     data = read_csv(artefact.get())
-    return Dataset(data, artefact.timestamp, artefact.obj_key, artefact.etag)
+    return Dataset(data, artefact.timestamp, bucket, artefact.obj_key, artefact.etag)
 
 
 def get_latest_parquet_dataset_from_s3(bucket: str, folder: str = "") -> Dataset:
@@ -185,7 +186,7 @@ def get_latest_parquet_dataset_from_s3(bucket: str, folder: str = "") -> Dataset
     """
     artefact = _find_latest_artefact_on_s3("parquet", bucket, folder)
     data = read_parquet(artefact.get())
-    return Dataset(data, artefact.timestamp, artefact.obj_key, artefact.etag)
+    return Dataset(data, artefact.timestamp, bucket, artefact.obj_key, artefact.etag)
 
 
 def put_object_to_s3(obj: Any, file_name: str, bucket: str, folder: str = "") -> None:
