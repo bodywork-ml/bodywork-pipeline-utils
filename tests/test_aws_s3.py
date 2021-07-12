@@ -50,6 +50,16 @@ def test_put_file_to_s3_uploads_file(mock_s3_client: MagicMock):
 
 
 @patch("bodywork_pipeline_utils.aws.s3.s3_client")
+def test_put_file_to_s3_uploads_file_with_file_name_override(mock_s3_client: MagicMock):
+    put_file_to_s3("tests/resources/dataset.csv", "my-bucket", "stuff/", "foo.bar")
+    mock_s3_client.upload_file.assert_called_once_with(
+        "tests/resources/dataset.csv",
+        Bucket="my-bucket",
+        Key="stuff/foo.bar",
+    )
+
+
+@patch("bodywork_pipeline_utils.aws.s3.s3_client")
 def test_put_file_to_s3_raises_exception_when_upload_fails(mock_s3_client: MagicMock):
     mock_s3_client.upload_file.side_effect = ClientError({}, "")
     with raises(RuntimeError, match="could upload file to AWS S3"):

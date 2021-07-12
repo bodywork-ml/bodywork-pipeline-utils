@@ -5,7 +5,7 @@ import pickle
 from pathlib import Path
 from pickle import PicklingError
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 import boto3 as aws
 from botocore.exceptions import ClientError
@@ -40,24 +40,32 @@ def put_object_to_s3(obj: Any, file_name: str, bucket: str, folder: str = "") ->
         raise RuntimeError(msg)
 
 
-def put_file_to_s3(path_to_file: str, bucket: str, folder: str = "") -> None:
+def put_file_to_s3(
+    path_to_file: str,
+    bucket: str,
+    folder: str = "",
+    file_name_override: Optional[str] = None,
+) -> None:
     """Upload a file to S3.
 
     Args:
         path_to_file: Path to the file.
         bucket: Location on S3 to persist the object.
         folder: Folder within the bucket, defaults to "".
+        file_name_override: Optional override for the file's name on S3,
+            defaults to None.
 
     Raises:
         FileExistsError: If the file could not be found.
         RuntimeError: If the object could not be uploaded to AWS S3.
     """
     path = Path(path_to_file)
+    s3_filename = path.name if not file_name_override else file_name_override
     if not path.exists():
         msg = f"Cannot open file at {path_to_file}."
         raise FileExistsError(msg)
     folder_std = folder if folder.endswith("/") or folder == "" else f"{folder}/"
-    s3_key = folder_std + path.name
+    s3_key = folder_std + s3_filename
     try:
         s3_client.upload_file(path_to_file, Bucket=bucket, Key=s3_key)
     except ClientError as e:
@@ -65,7 +73,5 @@ def put_file_to_s3(path_to_file: str, bucket: str, folder: str = "") -> None:
         raise RuntimeError(msg)
 
 
-def make_timestamped_filename(
-    prefix: str, ref_date: datetime, file_format: str
-) -> str:
+def make_timestamped_filename(prefix: str, ref_date: datetime, file_format: str) -> str:
     return f"{prefix}_{ref_date.isoformat(sep='T', timespec='seconds')}.{file_format}"
