@@ -4,12 +4,13 @@ Cass and functions for managing ML models.
 from datetime import datetime
 from hashlib import md5
 from os import environ
-from pickle import dump, dumps, PicklingError
+from pickle import dump, dumps, loads, PicklingError, UnpicklingError
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Optional
+from typing import Any, cast, Dict, Optional
 
 from bodywork_pipeline_utils.aws.datasets import Dataset
 from bodywork_pipeline_utils.aws.artefacts import (
+    find_latest_artefact_on_s3,
     make_timestamped_filename,
     put_file_to_s3,
 )
@@ -107,16 +108,24 @@ class Model:
             put_file_to_s3(temp_file.name, bucket, folder, filename)
 
 
-# def get_latest_model_from_s3(bucket: str, folder: str = "") -> Dataset:
-#     """Get the latest model dataset from S3.
+def get_latest_pkl_model_from_s3(bucket: str, folder: str = "") -> Model:
+    """Get the latest model from S3.
 
-#     Args:
-#         bucket: S3 bucket to look in.
-#         folder: Folder within bucket to limit search, defaults to "".
+    Args:
+        bucket: S3 bucket to look in.
+        folder: Folder within bucket to limit search, defaults to "".
 
-#     Returns:
-#         Dataset object.
-#     """
-#     artefact = find_latest_artefact_on_s3("csv", bucket, folder)
-#     data = read_csv(artefact.get())
-#     return Dataset(data, artefact.timestamp, bucket, artefact.obj_key, artefact.etag)
+    Returns:
+        Dataset object.
+    """
+    artefact = find_latest_artefact_on_s3("pkl", bucket, folder)
+    try:
+        artefact_bytes = artefact.get().read()
+        model = cast(Model, loads(artefact_bytes))
+        return model
+    except UnpicklingError:
+        msg = "artefact at {bucket}/{model.obj_key} could not be unpickled."
+        raise RuntimeError(msg)
+    except AttributeError:
+        msg = "artefact at {bucket}/{model.obj_key} is not type Model."
+        raise RuntimeError(msg)
