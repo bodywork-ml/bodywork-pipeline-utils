@@ -7,7 +7,7 @@ from typing import Any, NamedTuple
 
 from pandas import DataFrame, read_csv, read_parquet
 
-from bodywork_pipeline_utils.aws.s3 import (
+from bodywork_pipeline_utils.aws.artefacts import (
     find_latest_artefact_on_s3,
     make_timestamped_filename,
     put_file_to_s3,

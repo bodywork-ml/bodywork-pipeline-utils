@@ -9,10 +9,15 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional
 
 from bodywork_pipeline_utils.aws.datasets import Dataset
-from bodywork_pipeline_utils.aws.s3 import make_timestamped_filename, put_file_to_s3
+from bodywork_pipeline_utils.aws.artefacts import (
+    make_timestamped_filename,
+    put_file_to_s3,
+)
 
 
 class Model:
+    """Base class for representing ML models and metadata."""
+
     def __init__(
         self,
         name: str,
@@ -20,6 +25,14 @@ class Model:
         train_dataset: Dataset,
         metadata: Optional[Dict[str, Any]] = None,
     ):
+        """Constructor.
+
+        Args:
+            name: Model name.
+            model: Trained model object.
+            train_dataset: Dataset object used to train the model.
+            metadata: Arbitrary model metadata.
+        """
         self._name = name
         self._train_dataset_key = train_dataset.key
         self._train_dataset_hash = train_dataset.hash
@@ -31,6 +44,7 @@ class Model:
         self._metadata = metadata
 
     def __eq__(self, other: object) -> bool:
+        """Model quality operator."""
         if isinstance(other, Model):
             conditions = [
                 self._train_dataset_hash == other._train_dataset_hash,
@@ -46,13 +60,14 @@ class Model:
             return False
 
     def __repr__(self) -> str:
+        """String representation."""
         info = (
-            f"name: {self._name}"
-            f"model_type: {self._model_type}"
-            f"model_timestamp: {self._creation_time}"
-            f"model_hash: {self._model_hash}"
-            f"train_dataset_key: {self._train_dataset_key}"
-            f"train_dataset_hash: {self._train_dataset_hash}"
+            f"name: {self._name}\n"
+            f"model_type: {self._model_type}\n"
+            f"model_timestamp: {self._creation_time}\n"
+            f"model_hash: {self._model_hash}\n"
+            f"train_dataset_key: {self._train_dataset_key}\n"
+            f"train_dataset_hash: {self._train_dataset_hash}\n"
             f"pipeline_git_commit_hash: {self._pipeline_git_commit_hash}"
         )
         return info
@@ -67,6 +82,7 @@ class Model:
 
     @staticmethod
     def _compute_model_hash(model: Any) -> str:
+        """Compute a hash for a model object."""
         try:
             model_bytestream = dumps(model, protocol=5)
             hash = md5(model_bytestream)
@@ -89,3 +105,18 @@ class Model:
         with NamedTemporaryFile() as temp_file:
             dump(self, temp_file, protocol=5)
             put_file_to_s3(temp_file.name, bucket, folder, filename)
+
+
+# def get_latest_model_from_s3(bucket: str, folder: str = "") -> Dataset:
+#     """Get the latest model dataset from S3.
+
+#     Args:
+#         bucket: S3 bucket to look in.
+#         folder: Folder within bucket to limit search, defaults to "".
+
+#     Returns:
+#         Dataset object.
+#     """
+#     artefact = find_latest_artefact_on_s3("csv", bucket, folder)
+#     data = read_csv(artefact.get())
+#     return Dataset(data, artefact.timestamp, bucket, artefact.obj_key, artefact.etag)

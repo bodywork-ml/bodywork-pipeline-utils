@@ -1,5 +1,5 @@
 """
-Tests for AWS utilities.
+Tests for AWS dataset management.
 """
 from datetime import datetime
 from unittest.mock import ANY, MagicMock, patch
@@ -12,11 +12,11 @@ from bodywork_pipeline_utils.aws.datasets import (
     get_latest_csv_dataset_from_s3,
     get_latest_parquet_dataset_from_s3,
     put_csv_dataset_to_s3,
-    put_parquet_dataset_to_s3
+    put_parquet_dataset_to_s3,
 )
 
 
-@patch("bodywork_pipeline_utils.aws.s3.s3_client")
+@patch("bodywork_pipeline_utils.aws.artefacts.s3_client")
 def test_get_latest_csv_dataset_from_s3_return_dataset(mock_s3_client: MagicMock):
     mock_s3_client.list_objects.return_value = {
         "Contents": [
@@ -37,7 +37,7 @@ def test_get_latest_csv_dataset_from_s3_return_dataset(mock_s3_client: MagicMock
     assert dataset.hash == "hash"
 
 
-@patch("bodywork_pipeline_utils.aws.s3.s3_client")
+@patch("bodywork_pipeline_utils.aws.artefacts.s3_client")
 def test_get_latest_parquet_dataset_from_s3_return_dataset(mock_s3_client: MagicMock):
     mock_s3_client.list_objects.return_value = {
         "Contents": [
@@ -67,7 +67,7 @@ def test_put_csv_dataset_to_s3(mock_func: MagicMock):
         filename_prefix="training_data",
         ref_datetime=data_date,
         bucket="my-bucket",
-        folder="datasets"
+        folder="datasets",
     )
     mock_func.assert_called_once_with(
         ANY, "my-bucket", "datasets", "training_data_2021-07-12T13:00:00.csv"
@@ -83,7 +83,7 @@ def test_put_parquet_dataset_to_s3(mock_func: MagicMock):
         filename_prefix="training_data",
         ref_datetime=data_date,
         bucket="my-bucket",
-        folder="datasets"
+        folder="datasets",
     )
     mock_func.assert_called_once_with(
         ANY, "my-bucket", "datasets", "training_data_2021-07-12T13:00:00.parquet"
