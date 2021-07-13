@@ -12,12 +12,18 @@ from bodywork_pipeline_utils.aws.datasets import Dataset
 
 class Model:
     def __init__(
-        self, train_data: Dataset, model: Any, metadata: Optional[Dict[str, Any]] = None
+        self,
+        name: str,
+        model: Any,
+        train_dataset: Dataset,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
-        self._train_dataset_key = train_data.key
-        self._train_dataset_hash = train_data.hash
+        self._name = name
+        self._train_dataset_key = train_dataset.key
+        self._train_dataset_hash = train_dataset.hash
         self._model_hash = self._compute_model_hash(model)
         self._model = model
+        self._model_type = type(model)
         self._creation_time = datetime.now()
         self._pipeline_git_commit_hash = environ.get("GIT_COMMIT_HASH", "NA")
         self._metadata = metadata
@@ -38,7 +44,8 @@ class Model:
             return False
 
     def __repr__(self) -> str:
-        info = f"""
+        info = f"""name: {self._name}
+        model_type: {self._model_type}
         model_timestamp: {self._creation_time}
         model_hash: {self._model_hash}
         train_dataset_key: {self._train_dataset_key}

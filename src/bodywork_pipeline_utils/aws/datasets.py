@@ -2,14 +2,16 @@
 Utility functions for working with AWS services.
 """
 from datetime import datetime
-from typing import NamedTuple, Optional
 from re import findall, sub
+from tempfile import NamedTemporaryFile
+from typing import Any, NamedTuple, Optional
 
 import boto3 as aws
 from botocore.exceptions import ClientError
 from botocore.response import StreamingBody
 from pandas import DataFrame, read_csv, read_parquet
 
+from bodywork_pipeline_utils.aws.s3 import make_timestamped_filename, put_file_to_s3
 
 FILE_FORMAT_EXTENSIONS = {"csv": "CSV", "parquet": "PARQUET", "pkl": "PICKLE"}
 
@@ -184,3 +186,51 @@ def get_latest_parquet_dataset_from_s3(bucket: str, folder: str = "") -> Dataset
     artefact = _find_latest_artefact_on_s3("parquet", bucket, folder)
     data = read_parquet(artefact.get())
     return Dataset(data, artefact.timestamp, bucket, artefact.obj_key, artefact.etag)
+
+
+def put_csv_dataset_to_s3(
+    data: DataFrame,
+    filename_prefix: str,
+    ref_datetime: datetime,
+    bucket: str,
+    folder: str = "",
+    **kwargs: Any,
+) -> None:
+    """Upload DataFrame to S3 as a CSV file.
+
+    Args:
+        data: The DataFrame to upload.
+        filename_prefix: Prefix before datetime filename element.
+        ref_datetime: The reference date associated with data.
+        bucket: Location on S3 to persist the data.
+        folder: Folder within the bucket, defaults to "".
+        kwargs: Keywork arguments to pass to pandas.to_csv.
+    """
+    filename = make_timestamped_filename(filename_prefix, ref_datetime, "csv")
+    with NamedTemporaryFile() as temp_file:
+        data.to_csv(temp_file, **kwargs)
+        put_file_to_s3(temp_file.name, bucket, folder, filename)
+
+
+def put_parquet_dataset_to_s3(
+    data: DataFrame,
+    filename_prefix: str,
+    ref_datetime: datetime,
+    bucket: str,
+    folder: str = "",
+    **kwargs: Any,
+) -> None:
+    """Upload DataFrame to S3 as a Parquet file.
+
+    Args:
+        data: The DataFrame to upload.
+        filename_prefix: Prefix before datetime filename element.
+        ref_datetime: The reference date associated with data.
+        bucket: Location on S3 to persist the data.
+        folder: Folder within the bucket, defaults to "".
+        kwargs: Keywork arguments to pass to pandas.to_csv.
+    """
+    filename = make_timestamped_filename(filename_prefix, ref_datetime, "parquet")
+    with NamedTemporaryFile() as temp_file:
+        data.to_parquet(temp_file, **kwargs)
+        put_file_to_s3(temp_file.name, bucket, folder, filename)

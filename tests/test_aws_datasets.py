@@ -1,8 +1,8 @@
 """
 Tests for AWS utilities.
 """
-from datetime import datetime
-from unittest.mock import MagicMock, patch
+from datetime import date, datetime
+from unittest.mock import ANY, MagicMock, patch
 
 from botocore.exceptions import ClientError
 from pandas import DataFrame, read_csv
@@ -14,6 +14,8 @@ from bodywork_pipeline_utils.aws.datasets import (
     get_latest_csv_dataset_from_s3,
     get_latest_parquet_dataset_from_s3,
     S3TimestampedArtefact,
+    put_csv_dataset_to_s3,
+    put_parquet_dataset_to_s3
 )
 
 
@@ -196,12 +198,33 @@ def test_find_latest_artefact_on_s3_raises_exception_when_s3_client_fails(
         _find_latest_artefact_on_s3("csv", "my-bucket", "datasets")
 
 
-def test_put_file_to_s3_raises_exception_when_file_cannot_be_founbd():
-    with raises(FileExistsError, match="Cannot open file"):
-        put_file_to_s3("tests/resources/foo.csv", "my-bucket", "stuff/")
+@patch("bodywork_pipeline_utils.aws.datasets.put_file_to_s3")
+def test_put_csv_dataset_to_s3(mock_func: MagicMock):
+    data = DataFrame({"x": [1, 2, 3], "c": ["a", "b", "c"]})
+    data_date = datetime(2021, 7, 12, 13)
+    put_csv_dataset_to_s3(
+        data=data,
+        filename_prefix="training_data",
+        ref_datetime=data_date,
+        bucket="my-bucket",
+        folder="datasets"
+    )
+    mock_func.assert_called_once_with(
+        ANY, "my-bucket", "datasets", "training_data_2021-07-12T13:00:00.csv"
+    )
 
 
-def test_make_timstamped_filename():
-    data_datatime = datetime(2021, 7, 12)
-    expected_filename = "foo_2021-07-12T00:00:00.csv"
-    assert make_timestamped_filename("foo", data_datatime, "csv") == expected_filename
+@patch("bodywork_pipeline_utils.aws.datasets.put_file_to_s3")
+def test_put_parquet_dataset_to_s3(mock_func: MagicMock):
+    data = DataFrame({"x": [1, 2, 3], "c": ["a", "b", "c"]})
+    data_date = datetime(2021, 7, 12, 13)
+    put_parquet_dataset_to_s3(
+        data=data,
+        filename_prefix="training_data",
+        ref_datetime=data_date,
+        bucket="my-bucket",
+        folder="datasets"
+    )
+    mock_func.assert_called_once_with(
+        ANY, "my-bucket", "datasets", "training_data_2021-07-12T13:00:00.parquet"
+    )

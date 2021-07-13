@@ -44,7 +44,7 @@ def put_file_to_s3(
     path_to_file: str,
     bucket: str,
     folder: str = "",
-    file_name_override: Optional[str] = None,
+    filename_override: Optional[str] = None,
 ) -> None:
     """Upload a file to S3.
 
@@ -52,7 +52,7 @@ def put_file_to_s3(
         path_to_file: Path to the file.
         bucket: Location on S3 to persist the object.
         folder: Folder within the bucket, defaults to "".
-        file_name_override: Optional override for the file's name on S3,
+        filename_override: Optional override for the file's name on S3,
             defaults to None.
 
     Raises:
@@ -60,7 +60,7 @@ def put_file_to_s3(
         RuntimeError: If the object could not be uploaded to AWS S3.
     """
     path = Path(path_to_file)
-    s3_filename = path.name if not file_name_override else file_name_override
+    s3_filename = path.name if not filename_override else filename_override
     if not path.exists():
         msg = f"Cannot open file at {path_to_file}."
         raise FileExistsError(msg)

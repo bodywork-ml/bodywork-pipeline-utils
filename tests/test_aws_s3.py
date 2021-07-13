@@ -2,6 +2,7 @@
 Tests for generic AWS S3 interaction.
 """
 import pickle
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from botocore.exceptions import ClientError
@@ -64,3 +65,14 @@ def test_put_file_to_s3_raises_exception_when_upload_fails(mock_s3_client: Magic
     mock_s3_client.upload_file.side_effect = ClientError({}, "")
     with raises(RuntimeError, match="could upload file to AWS S3"):
         put_file_to_s3("tests/resources/dataset.csv", "my-bucket", "stuff/")
+
+
+def test_put_file_to_s3_raises_exception_when_file_cannot_be_found():
+    with raises(FileExistsError, match="Cannot open file"):
+        put_file_to_s3("tests/resources/foo.csv", "my-bucket", "stuff/")
+
+
+def test_make_timstamped_filename():
+    data_datatime = datetime(2021, 7, 12)
+    expected_filename = "foo_2021-07-12T00:00:00.csv"
+    assert make_timestamped_filename("foo", data_datatime, "csv") == expected_filename
