@@ -4,10 +4,12 @@ Cass and functions for managing ML models.
 from datetime import datetime
 from hashlib import md5
 from os import environ
-from pickle import dumps, PicklingError
+from pickle import dump, dumps, PicklingError
+from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional
 
 from bodywork_pipeline_utils.aws.datasets import Dataset
+from bodywork_pipeline_utils.aws.s3 import make_timestamped_filename, put_file_to_s3
 
 
 class Model:
@@ -44,14 +46,15 @@ class Model:
             return False
 
     def __repr__(self) -> str:
-        info = f"""name: {self._name}
-        model_type: {self._model_type}
-        model_timestamp: {self._creation_time}
-        model_hash: {self._model_hash}
-        train_dataset_key: {self._train_dataset_key}
-        train_dataset_hash: {self._train_dataset_hash}
-        pipeline_git_commit_hash: {self._pipeline_git_commit_hash}
-        """
+        info = (
+            f"name: {self._name}"
+            f"model_type: {self._model_type}"
+            f"model_timestamp: {self._creation_time}"
+            f"model_hash: {self._model_hash}"
+            f"train_dataset_key: {self._train_dataset_key}"
+            f"train_dataset_hash: {self._train_dataset_hash}"
+            f"pipeline_git_commit_hash: {self._pipeline_git_commit_hash}"
+        )
         return info
 
     @property
@@ -74,3 +77,15 @@ class Model:
         except Exception as e:
             msg = "Could not hash model."
             raise RuntimeError(msg) from e
+
+    def put_model_to_s3(self, bucket: str, folder: str = "") -> None:
+        """Upload model to S3 as a pickle file.
+
+        Args:
+            bucket: Location on S3 to persist the data.
+            folder: Folder within the bucket, defaults to "".
+        """
+        filename = make_timestamped_filename(self._name, self._creation_time, "pkl")
+        with NamedTemporaryFile() as temp_file:
+            dump(self, temp_file, protocol=5)
+            put_file_to_s3(temp_file.name, bucket, folder, filename)
