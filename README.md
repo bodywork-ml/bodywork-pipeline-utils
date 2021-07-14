@@ -9,9 +9,10 @@ Utilities for helping with pipeline development and integration with 3rd party M
     |-- get_latest_parquet_dataset_from_s3
     |-- put_csv_dataset_to_s3
     |-- put_parquet_dataset_to_s3
-    |
     |-- Model
     |-- get_latest_pkl_model_from_s3
+|-- logging
+    |-- configure_logger
 ```
 
 ## AWS
@@ -100,3 +101,13 @@ my-s3-project-bucket/
 ```
 
 The `Model` class is intended as a base class, suitable for pickle-able models (e.g. from Scikit-Learn). More complex model types (e.g. PyTorch or PyMC3 models) should inherit from `Model` and override the appropriate methods.
+
+## Logging
+
+The `configure_logger` function returns a Python logger configures to print logs using the Bodywork log format. For example,
+
+```python
+log = configure_logger()
+log.into("foo")
+# 2021-07-14 07:57:10,854 - INFO - pipeline.train - foo
+```

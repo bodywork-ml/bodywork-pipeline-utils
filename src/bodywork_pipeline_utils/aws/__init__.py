@@ -18,5 +18,5 @@ __all__ = [
     "put_csv_dataset_to_s3",
     "put_parquet_dataset_to_s3",
     "get_latest_pkl_model_from_s3",
-    "Model"
+    "Model",
 ]
