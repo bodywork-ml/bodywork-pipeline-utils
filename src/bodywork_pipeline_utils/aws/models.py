@@ -61,7 +61,7 @@ class Model:
             return False
 
     def __repr__(self) -> str:
-        """String representation."""
+        """Stdout representation."""
         info = (
             f"name: {self._name}\n"
             f"model_type: {self._model_type}\n"
@@ -69,6 +69,19 @@ class Model:
             f"model_hash: {self._model_hash}\n"
             f"train_dataset_key: {self._train_dataset_key}\n"
             f"train_dataset_hash: {self._train_dataset_hash}\n"
+            f"pipeline_git_commit_hash: {self._pipeline_git_commit_hash}"
+        )
+        return info
+
+    def __str__(self) -> str:
+        """String representation."""
+        info = (
+            f"name: {self._name}|"
+            f"model_type: {self._model_type}|"
+            f"model_timestamp: {self._creation_time}|"
+            f"model_hash: {self._model_hash}|"
+            f"train_dataset_key: {self._train_dataset_key}|"
+            f"train_dataset_hash: {self._train_dataset_hash}|"
             f"pipeline_git_commit_hash: {self._pipeline_git_commit_hash}"
         )
         return info
@@ -95,7 +108,7 @@ class Model:
             msg = "Could not hash model."
             raise RuntimeError(msg) from e
 
-    def put_model_to_s3(self, bucket: str, folder: str = "") -> None:
+    def put_model_to_s3(self, bucket: str, folder: str = "") -> str:
         """Upload model to S3 as a pickle file.
 
         Args:
@@ -106,6 +119,7 @@ class Model:
         with NamedTemporaryFile() as temp_file:
             dump(self, temp_file, protocol=5)
             put_file_to_s3(temp_file.name, bucket, folder, filename)
+        return f"{bucket}/{folder}/{filename}"
 
 
 def get_latest_pkl_model_from_s3(bucket: str, folder: str = "") -> Model:
