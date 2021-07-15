@@ -76,7 +76,7 @@ def test_model_equality_operator(dataset: Dataset):
 
 @patch("bodywork_pipeline_utils.aws.models.md5")
 @patch("bodywork_pipeline_utils.aws.models.datetime")
-def test_model_string_representation(
+def test_model_str_representation(
     mock_datetime: MagicMock, mock_md5: MagicMock, dataset: Dataset
 ):
     mock_md5().hexdigest.return_value = "foobar"
@@ -99,10 +99,11 @@ def test_put_model_to_s3_puts_object_to_s3(
 ):
     mock_datetime.now.return_value = datetime(2021, 1, 1)
     model = Model("model", DecisionTreeRegressor(), dataset)
-    model.put_model_to_s3("my-bucket", "models")
+    s3_location = model.put_model_to_s3("my-bucket", "models")
     mock_func.assert_called_once_with(
         ANY, "my-bucket", "models", "model_2021-01-01T00:00:00.pkl"
     )
+    assert s3_location == "my-bucket/models/model_2021-01-01T00:00:00.pkl"
 
 
 @patch("bodywork_pipeline_utils.aws.artefacts.s3_client")
