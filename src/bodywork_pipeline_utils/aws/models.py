@@ -76,13 +76,13 @@ class Model:
     def __str__(self) -> str:
         """String representation."""
         info = (
-            f"name: {self._name}|"
-            f"model_type: {self._model_type}|"
-            f"model_timestamp: {self._creation_time}|"
-            f"model_hash: {self._model_hash}|"
-            f"train_dataset_key: {self._train_dataset_key}|"
-            f"train_dataset_hash: {self._train_dataset_hash}|"
-            f"pipeline_git_commit_hash: {self._pipeline_git_commit_hash}"
+            f"name:{self._name}|"
+            f"model_type:{self._model_type}|"
+            f"model_timestamp:{self._creation_time}|"
+            f"model_hash:{self._model_hash}|"
+            f"train_dataset_key:{self._train_dataset_key}|"
+            f"train_dataset_hash:{self._train_dataset_hash}|"
+            f"pipeline_git_commit_hash:{self._pipeline_git_commit_hash}"
         )
         return info
 
