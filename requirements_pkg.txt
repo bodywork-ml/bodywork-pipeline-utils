@@ -1,3 +1,3 @@
-boto3==1.17.106
-pandas==1.3.0
-pyarrow==4.0.1
+boto3>=1.17.0
+pandas>=1.3.0
+pyarrow>=4.0.0
